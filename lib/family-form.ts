@@ -137,14 +137,29 @@ function fieldsHtml(
         return `
           <div class="f3-form-field">
             <label>Birthday</label>
-            <input type="date" name="birthday" value="${val}" />
+            <div class="f3-date-wrap">
+              <input type="date" name="birthday" value="${val}" />
+            </div>
           </div>`;
       }
       if (f.id === "avatar") return "";
+      if (f.id === "location") {
+        const display = val ? val : "";
+        return `
+          <div class="f3-form-field">
+            <label>Location</label>
+            <div class="f3-loc-wrap">
+              <input type="hidden" name="location" value="${val.replace(/"/g, "&quot;")}" />
+              <span class="f3-loc-display">${display ? display : "Not set"}</span>
+              <button type="button" class="f3-loc-btn" data-loc-edit>Edit</button>
+            </div>
+          </div>`;
+      }
+      const inputType = f.type === "number" ? "number" : "text";
       return `
         <div class="f3-form-field">
           <label>${f.label}</label>
-          <input type="text" name="${f.id}" value="${val.replace(/"/g, "&quot;")}" placeholder="${f.label}" />
+          <input type="${inputType}" name="${f.id}" value="${val.replace(/"/g, "&quot;")}" placeholder="${f.label}" ${inputType === "number" ? 'step="any"' : ""} />
         </div>`;
     })
     .join("");
@@ -169,6 +184,109 @@ function genderHtml(current: string): string {
         </label>
       </div>
     </div>`;
+}
+
+function openLocationModal(
+  hiddenInput: HTMLInputElement,
+  displayEl: HTMLElement
+): void {
+  const current = hiddenInput.value;
+  const parts = current ? current.split(",") : ["", ""];
+  let lat = parts[0] || "";
+  let lng = parts[1] || "";
+
+  const overlay = document.createElement("div");
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.85);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  `;
+
+  const box = document.createElement("div");
+  box.style.cssText = `
+    background:#141414;border:1px solid rgba(255,255,255,0.1);border-radius:12px;
+    padding:24px;width:90vw;max-width:320px;display:flex;flex-direction:column;gap:14px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  `;
+
+  const title = document.createElement("div");
+  title.textContent = "Set Location";
+  title.style.cssText = "font-size:13px;font-weight:600;color:#f0ede8;text-align:center;letter-spacing:0.02em;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.07);";
+
+  const latGroup = document.createElement("div");
+  latGroup.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+  const latLabel = document.createElement("label");
+  latLabel.textContent = "Latitude";
+  latLabel.style.cssText = "font-size:11px;font-weight:500;color:#7a7672;text-transform:uppercase;letter-spacing:0.04em;";
+  const latInput = document.createElement("input");
+  latInput.type = "number";
+  latInput.step = "any";
+  latInput.value = lat;
+  latInput.placeholder = "e.g. 17.3850";
+  latInput.style.cssText = `
+    padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);
+    background:#1c1c1c;color:#f0ede8;font-size:13px;outline:none;font-family:'Inter',system-ui,sans-serif;
+  `;
+  latGroup.appendChild(latLabel);
+  latGroup.appendChild(latInput);
+
+  const lngGroup = document.createElement("div");
+  lngGroup.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+  const lngLabel = document.createElement("label");
+  lngLabel.textContent = "Longitude";
+  lngLabel.style.cssText = "font-size:11px;font-weight:500;color:#7a7672;text-transform:uppercase;letter-spacing:0.04em;";
+  const lngInput = document.createElement("input");
+  lngInput.type = "number";
+  lngInput.step = "any";
+  lngInput.value = lng;
+  lngInput.placeholder = "e.g. 78.4867";
+  lngInput.style.cssText = latInput.style.cssText;
+  lngGroup.appendChild(lngLabel);
+  lngGroup.appendChild(lngInput);
+
+  const btnBar = document.createElement("div");
+  btnBar.style.cssText = "display:flex;gap:8px;justify-content:flex-end;margin-top:4px;";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "Cancel";
+  cancelBtn.style.cssText = `
+    padding:7px 14px;border-radius:6px;border:1px solid rgba(255,255,255,0.07);
+    background:transparent;color:#7a7672;font-size:12px;cursor:pointer;font-family:'Inter',system-ui,sans-serif;
+    transition:color .15s,background .15s,border-color .15s;
+  `;
+
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "Save";
+  saveBtn.style.cssText = `
+    padding:7px 14px;border-radius:6px;border:none;background:#c9a96e;color:#0c0c0c;
+    font-size:12px;font-weight:500;cursor:pointer;font-family:'Inter',system-ui,sans-serif;
+    transition:opacity .15s;
+  `;
+
+  cancelBtn.onclick = () => overlay.remove();
+  cancelBtn.onmouseenter = () => { cancelBtn.style.color = "#f0ede8"; cancelBtn.style.background = "#1c1c1c"; cancelBtn.style.borderColor = "rgba(255,255,255,0.14)"; };
+  cancelBtn.onmouseleave = () => { cancelBtn.style.color = "#7a7672"; cancelBtn.style.background = "transparent"; cancelBtn.style.borderColor = "rgba(255,255,255,0.07)"; };
+
+  saveBtn.onmouseenter = () => saveBtn.style.opacity = "0.88";
+  saveBtn.onmouseleave = () => saveBtn.style.opacity = "1";
+  saveBtn.onclick = () => {
+    const newLat = latInput.value.trim();
+    const newLng = lngInput.value.trim();
+    const val = newLat && newLng ? `${newLat},${newLng}` : "";
+    hiddenInput.value = val;
+    displayEl.textContent = val || "Not set";
+    overlay.remove();
+  };
+
+  btnBar.appendChild(cancelBtn);
+  btnBar.appendChild(saveBtn);
+  box.appendChild(title);
+  box.appendChild(latGroup);
+  box.appendChild(lngGroup);
+  box.appendChild(btnBar);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  setTimeout(() => latInput.focus(), 50);
 }
 
 function setupAvatarInput(form: HTMLElement) {
@@ -287,6 +405,13 @@ function buildForm(
   }
 
   setupAvatarInput(form);
+
+  const locBtn = form.querySelector("[data-loc-edit]") as HTMLElement | null;
+  const locHidden = form.querySelector('input[name="location"]') as HTMLInputElement | null;
+  const locDisplay = form.querySelector(".f3-loc-display") as HTMLElement | null;
+  if (locBtn && locHidden && locDisplay) {
+    locBtn.onclick = () => openLocationModal(locHidden, locDisplay);
+  }
 
   const avatarHidden = form.querySelector(
     'input[name="avatar"]'

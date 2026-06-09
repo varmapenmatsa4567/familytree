@@ -345,6 +345,301 @@ const styles = `
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
+
+  /* ── form panel ─────────────────────────────────────────────────────────── */
+  .f3-form-cont {
+    background: rgba(16,16,16,0.96) !important;
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    border-left: 1px solid ${token.border} !important;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.4) !important;
+  }
+  .f3-form-cont.opened { width: 340px !important; }
+
+  .f3-form {
+    padding: 16px 18px 20px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .f3-form-title {
+    font-family: 'Inter', system-ui, sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: ${token.text} !important;
+    text-align: center !important;
+    letter-spacing: 0.02em;
+    margin: 2px 0 16px !important;
+    padding-bottom: 12px;
+    border-bottom: 1px solid ${token.border};
+  }
+
+  .f3-close-btn {
+    color: ${token.textDim} !important;
+    font-size: 22px !important;
+    left: 12px !important;
+    top: 10px !important;
+    transition: color .15s;
+    line-height: 1;
+  }
+  .f3-close-btn:hover { color: ${token.text} !important; }
+
+  .f3-form-field {
+    margin-bottom: 12px;
+  }
+  .f3-form-field label {
+    font-family: 'Inter', system-ui, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    color: ${token.textMuted} !important;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .f3-form input[type="text"],
+  .f3-form input[type="date"],
+  .f3-form input[type="number"],
+  .f3-form textarea,
+  .f3-form select {
+    width: 100% !important;
+    padding: 8px 10px !important;
+    margin: 0 !important;
+    border: 1px solid ${token.borderHover} !important;
+    border-radius: 6px !important;
+    background: ${token.surfaceHigh} !important;
+    color: ${token.text} !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+    font-size: 13px !important;
+    outline: none !important;
+    transition: border-color .15s !important;
+    box-sizing: border-box !important;
+  }
+  .f3-form input[type="text"]:focus,
+  .f3-form input[type="date"]:focus { border-color: ${token.gold}55 !important; box-shadow: 0 0 0 3px ${token.gold}11 !important; }
+  .f3-form input[type="text"]::placeholder { color: ${token.textDim}; }
+
+  .f3-date-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .f3-date-wrap input[type="date"] {
+    color-scheme: dark;
+    padding-right: 32px !important;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .f3-date-wrap input[type="date"]::-webkit-calendar-picker-indicator {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    opacity: 0.45;
+    filter: invert(1);
+    transition: opacity .15s;
+  }
+  .f3-date-wrap input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 0.8;
+  }
+
+  .f3-form input[type="radio"] {
+    accent-color: ${token.gold};
+  }
+
+  .f3-form-buttons {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    margin-top: 4px;
+    margin-bottom: 6px;
+  }
+
+  .f3-form button {
+    font-family: 'Inter', system-ui, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    margin: 0 !important;
+    padding: 7px 14px !important;
+    border-radius: 6px !important;
+    border: 1px solid transparent !important;
+    cursor: pointer !important;
+    transition: opacity .15s, background .15s, border-color .15s !important;
+  }
+
+  .f3-form button[type="submit"] {
+    background: ${token.gold} !important;
+    color: #0c0c0c !important;
+    border-color: ${token.gold} !important;
+  }
+  .f3-form button[type="submit"]:hover { opacity: 0.88 !important; }
+
+  .f3-cancel-btn {
+    background: transparent !important;
+    color: ${token.textMuted} !important;
+    border-color: ${token.border} !important;
+  }
+  .f3-cancel-btn:hover {
+    color: ${token.text} !important;
+    background: ${token.surfaceHigh} !important;
+    border-color: ${token.borderHover} !important;
+  }
+
+  .f3-form hr {
+    border: none !important;
+    border-top: 1px solid ${token.border} !important;
+    margin: 8px 0 !important;
+    opacity: 1 !important;
+  }
+
+  .f3-form .f3-delete-btn,
+  .f3-form .f3-remove-relative-btn {
+    width: 100% !important;
+    margin: 4px 0 0 !important;
+    padding: 7px 14px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+  }
+  .f3-form .f3-delete-btn {
+    background: transparent !important;
+    color: #f87171 !important;
+    border: 1px solid rgba(248,113,113,0.2) !important;
+  }
+  .f3-form .f3-delete-btn:hover {
+    background: rgba(248,113,113,0.08) !important;
+    border-color: rgba(248,113,113,0.3) !important;
+  }
+  .f3-form .f3-remove-relative-btn {
+    background: transparent !important;
+    color: ${token.textMuted} !important;
+    border: 1px solid ${token.borderHover} !important;
+  }
+  .f3-form .f3-remove-relative-btn:hover {
+    color: ${token.text} !important;
+    background: ${token.surfaceHigh} !important;
+  }
+
+  .f3-form .f3-add-rel-btn {
+    font-size: 16px !important;
+    padding: 4px 10px !important;
+    border-radius: 5px !important;
+    background: transparent !important;
+    color: ${token.textMuted} !important;
+    border: 1px solid ${token.border} !important;
+    float: none !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+    transition: color .15s, border-color .15s, background .15s !important;
+  }
+  .f3-form .f3-add-rel-btn:hover {
+    color: ${token.gold} !important;
+    border-color: ${token.gold}55 !important;
+    background: ${token.goldDim} !important;
+  }
+
+  /* gender radio group */
+  .f3-form .f3-form-field > div:has(input[type="radio"]) {
+    display: flex !important;
+    gap: 16px !important;
+    margin-top: 2px;
+  }
+  .f3-form .f3-form-field > div:has(input[type="radio"]) label {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    cursor: pointer;
+    color: ${token.text} !important;
+    font-weight: 400 !important;
+  }
+  .f3-form .f3-form-field > div:has(input[type="radio"]) input[type="radio"] {
+    margin: 0 !important;
+    width: auto !important;
+  }
+
+  /* avatar section */
+  .f3-avatar-cont {
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    margin-top: 2px;
+  }
+  .f3-avatar-preview {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: ${token.surfaceHigh} !important;
+    border: 1px solid ${token.border} !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: ${token.textDim};
+  }
+  .f3-avatar-btn {
+    padding: 6px 12px !important;
+    border-radius: 6px !important;
+    border: 1px solid ${token.border} !important;
+    background: transparent !important;
+    color: ${token.textMuted} !important;
+    font-size: 12px !important;
+    cursor: pointer !important;
+    transition: color .15s, border-color .15s, background .15s !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+  }
+  .f3-avatar-btn:hover {
+    color: ${token.text} !important;
+    border-color: ${token.borderHover} !important;
+    background: ${token.surfaceHigh} !important;
+  }
+
+  /* location field */
+  .f3-loc-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+  }
+  .f3-loc-display {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid ${token.borderHover};
+    background: ${token.surfaceHigh};
+    color: ${token.textMuted};
+    font-size: 13px;
+    font-family: 'Inter', system-ui, sans-serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .f3-loc-btn {
+    padding: 7px 12px !important;
+    border-radius: 6px !important;
+    border: 1px solid ${token.border} !important;
+    background: transparent !important;
+    color: ${token.textMuted} !important;
+    font-size: 12px !important;
+    cursor: pointer !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s, background .15s !important;
+  }
+  .f3-loc-btn:hover {
+    color: ${token.text} !important;
+    border-color: ${token.borderHover} !important;
+    background: ${token.surfaceHigh} !important;
+  }
 `;
 
 export default function TreePage({
@@ -430,7 +725,7 @@ export default function TreePage({
       f3EditTree = f3Chart
         .editTree()
         .fixed()
-        .setFields(["first name", "last name", "birthday", "avatar"])
+        .setFields(["first name", "last name", "birthday", "avatar", "location"])
         .setEditFirst(true)
         .setCreateFormEdit(createEditForm)
         .setCreateFormNew(createNewForm)
