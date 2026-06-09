@@ -1,65 +1,157 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { JSX, useEffect, useRef, useState } from "react";
+import * as f3 from "family-chart";
+import "family-chart/styles/family-chart.css";
+import { fetchPeople, savePeople } from "@/lib/firestore";
+import type { Data } from "family-chart";
+
+const DEFAULT_PEOPLE: Data = [
+  {
+    id: "0",
+    rels: {
+      parents: [],
+      spouses: [],
+      children: [],
+    },
+    data: {
+      "first name": "Name",
+      "last name": "Surname",
+      birthday: 1970,
+      avatar:
+        "https://static8.depositphotos.com/1009634/988/v/950/depositphotos_9883921-stock-illustration-no-user-profile-picture.jpg",
+      gender: "M" as const,
+    },
+  },
+];
+
+export default function FamilyTree(): JSX.Element {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    let f3Chart: ReturnType<typeof f3.createChart> | null = null;
+    let f3EditTree: ReturnType<
+      ReturnType<typeof f3.createChart>["editTree"]
+    > | null = null;
+
+    async function init() {
+      console.log("[init] Starting family tree initialization");
+
+      let familyData: Data;
+
+      try {
+        console.log("[init] Fetching people from Firestore...");
+        familyData = await fetchPeople();
+        console.log("[init] Firestore fetch succeeded, records:", familyData.length);
+      } catch (err) {
+        console.warn("[init] Firestore fetch failed:", err);
+        familyData = DEFAULT_PEOPLE;
+        setOffline(true);
+      }
+
+      if (!chartRef.current) {
+        console.log("[init] chartRef no longer valid, aborting");
+        return;
+      }
+
+      if (familyData.length === 0) {
+        console.log("[init] No data from Firestore, using defaults");
+        familyData = DEFAULT_PEOPLE;
+      }
+
+      console.log("[init] Creating chart with", familyData.length, "people");
+      f3Chart = f3
+        .createChart("#FamilyChart", familyData)
+        .setTransitionTime(1000)
+        .setCardXSpacing(250)
+        .setCardYSpacing(150)
+        .setSingleParentEmptyCard(true, { label: "ADD" })
+        .setShowSiblingsOfMain(false)
+        .setOrientationVertical();
+      console.log("[init] Chart created");
+
+      const f3Card = f3Chart
+        .setCardHtml()
+        .setCardDisplay([
+          ["first name", "last name"],
+          ["birthday"],
+        ])
+        .setCardDim({})
+        .setMiniTree(true)
+        .setStyle("imageCircle")
+        .setOnHoverPathToMain();
+      console.log("[init] Card HTML configured");
+
+      f3EditTree = f3Chart
+        .editTree()
+        .fixed()
+        .setFields(["first name", "last name", "birthday", "avatar"])
+        .setEditFirst(true)
+        .setCardClickOpen(f3Card)
+        .setOnChange(() => {
+          console.log("[onChange] Data changed, saving to Firestore...");
+          if (!f3EditTree) return;
+          const data = f3EditTree.exportData() as Data;
+          savePeople(data)
+            .then(() => console.log("[onChange] Save to Firestore succeeded"))
+            .catch((err) =>
+              console.warn("[onChange] Save to Firestore failed:", err)
+            );
+        });
+      console.log("[init] Edit tree configured");
+
+      f3EditTree.setEdit();
+      console.log("[init] Edit mode enabled");
+
+      f3Chart.updateTree({ initial: true });
+      console.log("[init] First tree update done");
+
+      if (familyData.length > 0) {
+        f3EditTree.open(f3Chart.getMainDatum());
+        f3Chart.updateTree({ initial: true });
+        console.log("[init] Second tree update (with main datum open) done");
+      }
+
+      console.log("[init] Initialization complete");
+      setLoading(false);
+    }
+
+    init();
+
+    return () => {
+      f3EditTree?.destroy();
+    };
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="relative">
+      {loading && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[rgb(33,33,33)] text-white">
+          <p>Loading family tree...</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      )}
+      {offline && (
+        <div className="absolute top-0 left-0 right-0 z-10 bg-yellow-600 text-white text-center text-sm py-1">
+          Firestore unavailable — using local data. Edits won&apos;t persist
+          across sessions.
         </div>
-      </main>
+      )}
+      <div
+        ref={chartRef}
+        id="FamilyChart"
+        className="f3"
+        style={{
+          width: "100%",
+          height: "900px",
+          margin: "auto",
+          backgroundColor: "rgb(33,33,33)",
+          color: "#fff",
+        }}
+      />
     </div>
   );
 }
