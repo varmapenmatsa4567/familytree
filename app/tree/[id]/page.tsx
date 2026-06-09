@@ -10,6 +10,7 @@ import { getTree, updateTreePeople, updateTreeName } from "@/lib/firestore";
 import { createEditForm, createNewForm } from "@/lib/family-form";
 import type { Data, Datum } from "family-chart";
 import { RelationShipFinder, mergeSteps, stepsToCode, findRelation } from "@/utils/relationship";
+import "leaflet/dist/leaflet.css";
 
 const DEFAULT_PEOPLE: Data = [
   {
@@ -640,6 +641,24 @@ const styles = `
     border-color: ${token.borderHover} !important;
     background: ${token.surfaceHigh} !important;
   }
+
+  /* map */
+  .leaflet-container {
+    background: ${token.bg} !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+  }
+  .leaflet-control-zoom a {
+    background: ${token.surface} !important;
+    color: ${token.text} !important;
+    border-color: ${token.border} !important;
+  }
+  .leaflet-control-zoom a:hover {
+    background: ${token.surfaceHigh} !important;
+  }
+  .leaflet-control-zoom {
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3) !important;
+  }
 `;
 
 export default function TreePage({
@@ -669,6 +688,9 @@ export default function TreePage({
   const [compareResults, setCompareResults] = useState<
     Array<{ code: string; telugu: string | null }>
   >([]);
+  const [showMap, setShowMap] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -678,6 +700,71 @@ export default function TreePage({
   useEffect(() => {
     if (editingName) nameInputRef.current?.focus();
   }, [editingName]);
+
+  useEffect(() => {
+    if (!showMap) return;
+    if (!mapRef.current) return;
+
+    if (mapInstanceRef.current) {
+      requestAnimationFrame(() => mapInstanceRef.current!.invalidateSize());
+      return;
+    }
+
+    let L: typeof import("leaflet");
+    let map: ReturnType<typeof import("leaflet")["map"]>;
+
+    import("leaflet").then((mod) => {
+      L = mod;
+      map = L.map(mapRef.current!, {
+        center: [20, 78],
+        zoom: 4,
+        zoomControl: true,
+        attributionControl: false,
+      });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap",
+      }).addTo(map);
+      mapInstanceRef.current = map;
+
+      const people = peopleRef.current;
+      const bounds: [number, number][] = [];
+      people.forEach((p) => {
+        const loc = p.data.location;
+        if (!loc) return;
+        const parts = loc.split(",");
+        if (parts.length < 2) return;
+        const lat = parseFloat(parts[0]);
+        const lng = parseFloat(parts[1]);
+        if (isNaN(lat) || isNaN(lng)) return;
+        const name = `${p.data["first name"] || ""} ${p.data["last name"] || ""}`.trim() || p.id;
+        const avatar = p.data.avatar || "";
+        const iconHtml = avatar
+          ? `<img src="${avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${token.gold};box-shadow:0 2px 8px rgba(0,0,0,.5)" />`
+          : `<div style="width:36px;height:36px;border-radius:50%;background:${token.surfaceHigh};border:2px solid ${token.textDim};display:flex;align-items:center;justify-content:center;font-size:14px;color:${token.textMuted}">${name.charAt(0).toUpperCase()}</div>`;
+        const icon = L.divIcon({
+          className: "",
+          html: `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">${iconHtml}<span style="font-size:10px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);white-space:nowrap;background:rgba(0,0,0,.5);padding:1px 6px;border-radius:4px;max-width:100px;overflow:hidden;text-overflow:ellipsis">${name}</span></div>`,
+          iconSize: [42, 56],
+          iconAnchor: [21, 56],
+        });
+        L.marker([lat, lng], { icon }).addTo(map);
+        bounds.push([lat, lng]);
+      });
+      if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40] });
+      map.invalidateSize();
+    });
+
+  }, [showMap]);
+
+  useEffect(() => {
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const key = `refreshed-tree`;
@@ -897,6 +984,18 @@ export default function TreePage({
         {/* right */}
         <div className="tp-nav-right">
           <button
+            className={`tp-btn${showMap ? " tp-btn-active" : ""}`}
+            onClick={() => {
+              setShowMap((v) => !v);
+              setCompareOpen(false);
+            }}
+          >
+            Map
+          </button>
+
+          <div className="tp-divider" />
+
+          <button
             className={`tp-btn${compareOpen ? " tp-btn-active" : ""}`}
             onClick={() => { setCompareOpen((v) => !v); setCompareResults([]); }}
           >
@@ -971,17 +1070,29 @@ export default function TreePage({
         </div>
       )}
 
-      {/* ── chart canvas ────────────────────────────────────────────────── */}
+      {/* ── chart / map ──────────────────────────────────────────────────── */}
       <div
         ref={chartRef}
         id="FamilyChart"
         className="f3"
         style={{
+          display: showMap ? "none" : "flex",
           flex: 1,
           width: "100%",
           minHeight: 0,
           backgroundColor: token.bg,
           color: "#fff",
+        }}
+      />
+      <div
+        ref={mapRef}
+        style={{
+          display: showMap ? "flex" : "none",
+          flex: 1,
+          width: "100%",
+          minHeight: 0,
+          position: "relative",
+          zIndex: 0,
         }}
       />
     </div>
