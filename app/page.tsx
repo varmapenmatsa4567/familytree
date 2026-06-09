@@ -1,157 +1,57 @@
 "use client";
 
-import React, { JSX, useEffect, useRef, useState } from "react";
-import * as f3 from "family-chart";
-import "family-chart/styles/family-chart.css";
-import { fetchPeople, savePeople } from "@/lib/firestore";
-import type { Data } from "family-chart";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 
-const DEFAULT_PEOPLE: Data = [
-  {
-    id: "0",
-    rels: {
-      parents: [],
-      spouses: [],
-      children: [],
-    },
-    data: {
-      "first name": "Name",
-      "last name": "Surname",
-      birthday: 1970,
-      avatar:
-        "https://static8.depositphotos.com/1009634/988/v/950/depositphotos_9883921-stock-illustration-no-user-profile-picture.jpg",
-      gender: "M" as const,
-    },
-  },
-];
-
-export default function FamilyTree(): JSX.Element {
-  const chartRef = useRef<HTMLDivElement>(null);
-  const [loading, setLoading] = useState(true);
-  const [offline, setOffline] = useState(false);
+export default function LoginPage() {
+  const { user, loading, signInWithGoogle } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    if (!chartRef.current) return;
-
-    let f3Chart: ReturnType<typeof f3.createChart> | null = null;
-    let f3EditTree: ReturnType<
-      ReturnType<typeof f3.createChart>["editTree"]
-    > | null = null;
-
-    async function init() {
-      console.log("[init] Starting family tree initialization");
-
-      let familyData: Data;
-
-      try {
-        console.log("[init] Fetching people from Firestore...");
-        familyData = await fetchPeople();
-        console.log("[init] Firestore fetch succeeded, records:", familyData.length);
-      } catch (err) {
-        console.warn("[init] Firestore fetch failed:", err);
-        familyData = DEFAULT_PEOPLE;
-        setOffline(true);
-      }
-
-      if (!chartRef.current) {
-        console.log("[init] chartRef no longer valid, aborting");
-        return;
-      }
-
-      if (familyData.length === 0) {
-        console.log("[init] No data from Firestore, using defaults");
-        familyData = DEFAULT_PEOPLE;
-      }
-
-      console.log("[init] Creating chart with", familyData.length, "people");
-      f3Chart = f3
-        .createChart("#FamilyChart", familyData)
-        .setTransitionTime(1000)
-        .setCardXSpacing(250)
-        .setCardYSpacing(150)
-        .setSingleParentEmptyCard(true, { label: "ADD" })
-        .setShowSiblingsOfMain(false)
-        .setOrientationVertical();
-      console.log("[init] Chart created");
-
-      const f3Card = f3Chart
-        .setCardHtml()
-        .setCardDisplay([
-          ["first name", "last name"],
-          ["birthday"],
-        ])
-        .setCardDim({})
-        .setMiniTree(true)
-        .setStyle("imageCircle")
-        .setOnHoverPathToMain();
-      console.log("[init] Card HTML configured");
-
-      f3EditTree = f3Chart
-        .editTree()
-        .fixed()
-        .setFields(["first name", "last name", "birthday", "avatar"])
-        .setEditFirst(true)
-        .setCardClickOpen(f3Card)
-        .setOnChange(() => {
-          console.log("[onChange] Data changed, saving to Firestore...");
-          if (!f3EditTree) return;
-          const data = f3EditTree.exportData() as Data;
-          savePeople(data)
-            .then(() => console.log("[onChange] Save to Firestore succeeded"))
-            .catch((err) =>
-              console.warn("[onChange] Save to Firestore failed:", err)
-            );
-        });
-      console.log("[init] Edit tree configured");
-
-      f3EditTree.setEdit();
-      console.log("[init] Edit mode enabled");
-
-      f3Chart.updateTree({ initial: true });
-      console.log("[init] First tree update done");
-
-      if (familyData.length > 0) {
-        f3EditTree.open(f3Chart.getMainDatum());
-        f3Chart.updateTree({ initial: true });
-        console.log("[init] Second tree update (with main datum open) done");
-      }
-
-      console.log("[init] Initialization complete");
-      setLoading(false);
+    if (!loading && user) {
+      router.replace("/dashboard");
     }
+  }, [user, loading, router]);
 
-    init();
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[rgb(33,33,33)] text-white">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
-    return () => {
-      f3EditTree?.destroy();
-    };
-  }, []);
+  if (user) return null;
 
   return (
-    <div className="relative">
-      {loading && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[rgb(33,33,33)] text-white">
-          <p>Loading family tree...</p>
-        </div>
-      )}
-      {offline && (
-        <div className="absolute top-0 left-0 right-0 z-10 bg-yellow-600 text-white text-center text-sm py-1">
-          Firestore unavailable — using local data. Edits won&apos;t persist
-          across sessions.
-        </div>
-      )}
-      <div
-        ref={chartRef}
-        id="FamilyChart"
-        className="f3"
-        style={{
-          width: "100%",
-          height: "900px",
-          margin: "auto",
-          backgroundColor: "rgb(33,33,33)",
-          color: "#fff",
-        }}
-      />
+    <div className="flex flex-col items-center justify-center h-screen bg-[rgb(33,33,33)] text-white gap-6">
+      <h1 className="text-3xl font-bold">Family Tree</h1>
+      <p className="text-gray-400">Build and explore your family history</p>
+      <button
+        onClick={signInWithGoogle}
+        className="flex items-center gap-3 rounded-lg border border-gray-600 bg-white px-6 py-3 text-sm font-medium text-gray-900 hover:bg-gray-100 transition-colors"
+      >
+        <svg className="h-5 w-5" viewBox="0 0 24 24">
+          <path
+            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+            fill="#4285F4"
+          />
+          <path
+            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            fill="#34A853"
+          />
+          <path
+            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+            fill="#FBBC05"
+          />
+          <path
+            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+            fill="#EA4335"
+          />
+        </svg>
+        Sign in with Google
+      </button>
     </div>
   );
 }

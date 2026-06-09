@@ -24,3 +24,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Allow the chart canvas to shrink in the flex layout when the form panel opens */
+.f3 #f3Canvas {
+  min-width: 0;
+}
+
+
