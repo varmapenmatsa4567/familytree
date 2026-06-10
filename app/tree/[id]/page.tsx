@@ -11,6 +11,8 @@ import { createEditForm, createNewForm } from "@/lib/family-form";
 import type { Data, Datum } from "family-chart";
 import { RelationShipFinder, mergeSteps, stepsToCode, findRelation } from "@/utils/relationship";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
 const DEFAULT_PEOPLE: Data = [
   {
@@ -713,8 +715,11 @@ export default function TreePage({
     let L: typeof import("leaflet");
     let map: ReturnType<typeof import("leaflet")["map"]>;
 
-    import("leaflet").then((mod) => {
-      L = mod;
+    import("leaflet").then(async (mod) => {
+      const mutableL = { ...mod } as typeof import("leaflet");
+      (window as any).L = mutableL;
+      await import("leaflet.markercluster");
+      L = mutableL;
       map = L.map(mapRef.current!, {
         center: [20, 78],
         zoom: 4,
@@ -725,6 +730,27 @@ export default function TreePage({
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap",
       }).addTo(map);
+
+      const mcg = L.markerClusterGroup({
+        chunkedLoading: true,
+        maxClusterRadius: 60,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        disableClusteringAtZoom: 16,
+        iconCreateFunction: (cluster) => {
+          let total = 0;
+          cluster.getAllChildMarkers().forEach((m) => {
+            total += (m.options as any).personCount || 1;
+          });
+          return L.divIcon({
+            className: "",
+            html: `<div style="width:40px;height:40px;border-radius:50%;background:${token.gold};color:#0c0c0c;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;font-family:Inter,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.5);border:2px solid #fff">${total}</div>`,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+          });
+        },
+      });
       mapInstanceRef.current = map;
 
       const people = peopleRef.current;
@@ -779,7 +805,9 @@ export default function TreePage({
           iconSize,
           iconAnchor,
         });
-        const marker = L.marker([lat, lng], { icon }).addTo(map);
+        const marker = L.marker([lat, lng], { icon });
+        (marker.options as any).personCount = group.length;
+        mcg.addLayer(marker);
 
         if (group.length > 1) {
           const namesHtml = group.map((p) => {
@@ -798,6 +826,7 @@ export default function TreePage({
 
         bounds.push([lat, lng]);
       });
+      map.addLayer(mcg);
       if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40] });
       map.invalidateSize();
     });
