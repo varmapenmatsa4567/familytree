@@ -1020,7 +1020,7 @@ export default function TreePage({
         }
       } else {
         f3EditTree.setNoEdit();
-        f3Card.setOnCardClick(() => {});
+        (f3Card as any).setOnCardClick((e: any, d: any) => { (f3Card as any).onCardClickDefault(e, d); });
         f3Chart.updateTree({ initial: true });
       }
       setLoading(false);
@@ -1226,7 +1226,7 @@ export default function TreePage({
               } else {
                 editTree?.setNoEdit();
                 editTree?.closeForm();
-                card?.setOnCardClick(() => {});
+                if (card) (card as any).setOnCardClick((e: any, d: any) => { (card as any).onCardClickDefault(e, d); });
                 chart?.updateTree({ initial: true });
               }
               setEditing(next);
@@ -1305,7 +1305,7 @@ export default function TreePage({
       />
 
       {/* ── timeline slider ──────────────────────────────────────────────── */}
-      {yearRange && sliderYear !== null && (
+      {yearRange && sliderYear !== null && !editing && (
         <div className="tp-timeline">
           <span className="tp-timeline-label">Timeline</span>
           <input
