@@ -728,7 +728,8 @@ export default function TreePage({
       mapInstanceRef.current = map;
 
       const people = peopleRef.current;
-      const bounds: [number, number][] = [];
+      const locMap = new Map<string, typeof people>();
+      const key = (lat: number, lng: number) => `${lat.toFixed(5)},${lng.toFixed(5)}`;
       people.forEach((p) => {
         const loc = p.data.location;
         if (!loc) return;
@@ -737,18 +738,64 @@ export default function TreePage({
         const lat = parseFloat(parts[0]);
         const lng = parseFloat(parts[1]);
         if (isNaN(lat) || isNaN(lng)) return;
-        const name = `${p.data["first name"] || ""} ${p.data["last name"] || ""}`.trim() || p.id;
-        const avatar = p.data.avatar || "";
-        const iconHtml = avatar
-          ? `<img src="${avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${token.gold};box-shadow:0 2px 8px rgba(0,0,0,.5)" />`
-          : `<div style="width:36px;height:36px;border-radius:50%;background:${token.surfaceHigh};border:2px solid ${token.textDim};display:flex;align-items:center;justify-content:center;font-size:14px;color:${token.textMuted}">${name.charAt(0).toUpperCase()}</div>`;
+        const k = key(lat, lng);
+        if (!locMap.has(k)) locMap.set(k, []);
+        locMap.get(k)!.push(p);
+      });
+      const bounds: [number, number][] = [];
+      locMap.forEach((group) => {
+        const [lat, lng] = group[0].data.location!.split(",").map(Number);
+        let iconHtml: string;
+        let iconSize: [number, number];
+        let iconAnchor: [number, number];
+
+        if (group.length === 1) {
+          const p = group[0];
+          const name = `${p.data["first name"] || ""} ${p.data["last name"] || ""}`.trim() || p.id;
+          const avatar = p.data.avatar || "";
+          const img = avatar
+            ? `<img src="${avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${token.gold};box-shadow:0 2px 8px rgba(0,0,0,.5)" />`
+            : `<div style="width:36px;height:36px;border-radius:50%;background:${token.surfaceHigh};border:2px solid ${token.textDim};display:flex;align-items:center;justify-content:center;font-size:14px;color:${token.textMuted}">${name.charAt(0).toUpperCase()}</div>`;
+          iconHtml = `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">${img}<span style="font-size:10px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);white-space:nowrap;background:rgba(0,0,0,.5);padding:1px 6px;border-radius:4px;max-width:100px;overflow:hidden;text-overflow:ellipsis">${name}</span></div>`;
+          iconSize = [42, 56];
+          iconAnchor = [21, 56];
+        } else {
+          const avatarsHtml = group.map((p) => {
+            const name = `${p.data["first name"] || ""} ${p.data["last name"] || ""}`.trim() || p.id;
+            const avatar = p.data.avatar || "";
+            return avatar
+              ? `<img src="${avatar}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid ${token.gold}" title="${name}" />`
+              : `<div style="width:28px;height:28px;border-radius:50%;background:${token.surfaceHigh};border:2px solid ${token.textDim};display:flex;align-items:center;justify-content:center;font-size:12px;color:${token.textMuted}" title="${name}">${name.charAt(0).toUpperCase()}</div>`;
+          }).join("");
+          const count = group.length;
+          iconHtml = `<div style="display:flex;flex-direction:row;flex-wrap:wrap;gap:0;background:rgba(0,0,0,.65);padding:4px 6px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.6)">${avatarsHtml}</div><div style="text-align:center;font-size:9px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9);margin-top:2px">${count} members</div>`;
+          iconSize = [group.length * 30 + 12, 48];
+          iconAnchor = [(group.length * 30 + 12) / 2, 48];
+        }
+
         const icon = L.divIcon({
           className: "",
-          html: `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">${iconHtml}<span style="font-size:10px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);white-space:nowrap;background:rgba(0,0,0,.5);padding:1px 6px;border-radius:4px;max-width:100px;overflow:hidden;text-overflow:ellipsis">${name}</span></div>`,
-          iconSize: [42, 56],
-          iconAnchor: [21, 56],
+          html: iconHtml,
+          iconSize,
+          iconAnchor,
         });
-        L.marker([lat, lng], { icon }).addTo(map);
+        const marker = L.marker([lat, lng], { icon }).addTo(map);
+
+        if (group.length > 1) {
+          const namesHtml = group.map((p) => {
+            const name = `${p.data["first name"] || ""} ${p.data["last name"] || ""}`.trim() || p.id;
+            const avatar = p.data.avatar || "";
+            const img = avatar
+              ? `<img src="${avatar}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />`
+              : `<div style="display:inline-flex;width:24px;height:24px;border-radius:50%;background:${token.surfaceHigh};align-items:center;justify-content:center;font-size:10px;color:${token.textMuted};vertical-align:middle;margin-right:6px">${name.charAt(0).toUpperCase()}</div>`;
+            return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">${img}<span style="font-size:13px">${name}</span></div>`;
+          }).join("");
+          marker.bindPopup(
+            `<div style="font-family:Inter,sans-serif;background:#1a1a1a;color:#e0e0e0;padding:8px 12px;border-radius:8px;min-width:160px">${namesHtml}</div>`,
+            { closeButton: false },
+          );
+        }
+
         bounds.push([lat, lng]);
       });
       if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40] });
