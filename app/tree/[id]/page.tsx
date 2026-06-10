@@ -644,6 +644,80 @@ const styles = `
     background: ${token.surfaceHigh} !important;
   }
 
+  /* timeline slider */
+  .tp-timeline {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 20px;
+    background: ${token.surface};
+    border-top: 1px solid ${token.border};
+    flex-shrink: 0;
+  }
+  .tp-timeline-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: ${token.textMuted};
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .tp-timeline-input {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: ${token.border};
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .tp-timeline-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: ${token.gold};
+    border: 2px solid ${token.bg};
+    box-shadow: 0 1px 4px rgba(0,0,0,.4);
+    cursor: pointer;
+    transition: transform .1s;
+  }
+  .tp-timeline-input::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+  .tp-timeline-input::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: ${token.gold};
+    border: 2px solid ${token.bg};
+    box-shadow: 0 1px 4px rgba(0,0,0,.4);
+    cursor: pointer;
+  }
+  .tp-timeline-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: ${token.gold};
+    min-width: 44px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .tp-timeline-reset {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: 1px solid ${token.border};
+    background: transparent;
+    color: ${token.textMuted};
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  .tp-timeline-reset:hover {
+    color: ${token.text};
+    border-color: ${token.borderHover};
+  }
+
   /* map */
   .leaflet-container {
     background: ${token.bg} !important;
@@ -683,6 +757,9 @@ export default function TreePage({
   >(null);
   const f3CardRef = useRef<ReturnType<ReturnType<typeof f3.createChart>["setCardHtml"]> | null>(null);
   const peopleRef = useRef<Datum[]>([]);
+  const fullDataRef = useRef<Data>([]);
+  const [sliderYear, setSliderYear] = useState<number | null>(null);
+  const [yearRange, setYearRange] = useState<[number, number] | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareP1, setCompareP1] = useState("");
   const [compareP2, setCompareP2] = useState("");
@@ -900,9 +977,33 @@ export default function TreePage({
         })
         .setOnChange(() => {
           if (!f3EditTree) return;
-          const data = f3EditTree.exportData() as Data;
-          updateTreePeople(treeId, data).catch(console.warn);
+          const exportData = f3EditTree.exportData() as Data;
+          const exportIds = new Set(exportData.map(p => p.id));
+          for (const p of fullDataRef.current) {
+            if (!exportIds.has(p.id)) exportData.push(p);
+          }
+          fullDataRef.current = exportData;
+          updateTreePeople(treeId, exportData).catch(console.warn);
         });
+
+      fullDataRef.current = familyData;
+
+      // compute year range
+      const years = familyData
+        .map(p => {
+          const b = p.data.birthday;
+          if (b == null) return null;
+          if (typeof b === "number") return b > 0 ? b : null;
+          const y = new Date(b).getFullYear();
+          return isNaN(y) ? null : y;
+        })
+        .filter((y): y is number => y != null);
+      if (years.length > 0) {
+        const min = Math.min(...years);
+        const max = Math.max(...years);
+        setYearRange([min, max]);
+        setSliderYear(max);
+      }
 
       f3ChartRef.current = f3Chart;
       f3EditTreeRef.current = f3EditTree;
@@ -928,6 +1029,31 @@ export default function TreePage({
     init();
     return () => { cancelled = true; f3EditTree?.destroy(); };
   }, [treeId, user, authLoading]);
+
+  const handleSliderChange = (year: number) => {
+    setSliderYear(year);
+    const full = fullDataRef.current;
+    const chart = f3ChartRef.current;
+    const editTree = f3EditTreeRef.current;
+    if (!chart || !editTree) return;
+    editTree.closeForm();
+    const raw: Data = JSON.parse(JSON.stringify(full));
+    const keep = raw.filter(p => {
+      if (!p.data.birthday) return true;
+      const b = typeof p.data.birthday === "number" ? p.data.birthday : new Date(p.data.birthday).getFullYear();
+      return !isNaN(b) && b <= year;
+    });
+    const keepIds = new Set(keep.map(p => p.id));
+    for (const p of keep) {
+      p.rels.parents = p.rels.parents.filter(id => keepIds.has(id));
+      p.rels.spouses = p.rels.spouses.filter(id => keepIds.has(id));
+      p.rels.children = p.rels.children.filter(id => keepIds.has(id));
+    }
+    (keep as any).main_id = keep[0]?.id;
+    chart.updateData(keep);
+    chart.updateTree({ transition_time: 300 });
+    peopleRef.current = keep;
+  };
 
   const handleCompare = () => {
     if (!compareP1 || !compareP2 || compareP1 === compareP2) return;
@@ -1177,6 +1303,28 @@ export default function TreePage({
           zIndex: 0,
         }}
       />
+
+      {/* ── timeline slider ──────────────────────────────────────────────── */}
+      {yearRange && sliderYear !== null && (
+        <div className="tp-timeline">
+          <span className="tp-timeline-label">Timeline</span>
+          <input
+            type="range"
+            className="tp-timeline-input"
+            min={yearRange[0]}
+            max={yearRange[1]}
+            value={sliderYear}
+            onChange={(e) => handleSliderChange(Number(e.target.value))}
+          />
+          <span className="tp-timeline-value">{sliderYear}</span>
+          <button
+            className="tp-timeline-reset"
+            onClick={() => handleSliderChange(yearRange[1])}
+          >
+            Reset
+          </button>
+        </div>
+      )}
     </div>
   );
 }
