@@ -879,7 +879,7 @@ export default function TreePage({
 
       const f3Card = f3Chart
         .setCardHtml()
-        .setCardDisplay([["first name", "last name"], ["birthday"]])
+        .setCardDisplay([["first name"]])
         .setCardDim({})
         .setMiniTree(true)
         .setStyle("imageCircle")
@@ -890,8 +890,14 @@ export default function TreePage({
         .fixed()
         .setFields(["first name", "last name", "birthday", "avatar", "location"])
         .setEditFirst(true)
-        .setCreateFormEdit(createEditForm)
-        .setCreateFormNew(createNewForm)
+        .setCreateFormEdit((fc, cb) => {
+          const names = [...new Set(peopleRef.current.map(p => p.data["last name"]).filter(Boolean))];
+          return createEditForm(fc, cb, names.length ? names : undefined);
+        })
+        .setCreateFormNew((fc, cb) => {
+          const names = [...new Set(peopleRef.current.map(p => p.data["last name"]).filter(Boolean))];
+          return createNewForm(fc, cb, names.length ? names : undefined);
+        })
         .setOnChange(() => {
           if (!f3EditTree) return;
           const data = f3EditTree.exportData() as Data;

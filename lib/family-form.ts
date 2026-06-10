@@ -128,7 +128,8 @@ function avatarHtml(current: string): string {
 
 function fieldsHtml(
   fields: FormField[],
-  initial_values: Record<string, string>
+  initial_values: Record<string, string>,
+  lastNames?: string[]
 ): string {
   return fields
     .map((f) => {
@@ -156,10 +157,16 @@ function fieldsHtml(
           </div>`;
       }
       const inputType = f.type === "number" ? "number" : "text";
+      const listAttr = f.id === "last name" && lastNames?.length
+        ? ` list="f3-lastname-list"` : "";
+      const datalist = f.id === "last name" && lastNames?.length
+        ? `<datalist id="f3-lastname-list">${lastNames.map(n => `<option value="${n.replace(/"/g, "&quot;")}">`).join("")}</datalist>`
+        : "";
       return `
         <div class="f3-form-field">
           <label>${f.label}</label>
-          <input type="${inputType}" name="${f.id}" value="${val.replace(/"/g, "&quot;")}" placeholder="${f.label}" ${inputType === "number" ? 'step="any"' : ""} />
+          <input type="${inputType}" name="${f.id}" value="${val.replace(/"/g, "&quot;")}" placeholder="${f.label}" ${inputType === "number" ? 'step="any"' : ""}${listAttr} />
+          ${datalist}
         </div>`;
     })
     .join("");
@@ -339,7 +346,8 @@ function collectFormData(
 function buildForm(
   form_creator: FormCreator,
   closeCallback: () => void,
-  isEdit: boolean
+  isEdit: boolean,
+  lastNames?: string[]
 ): HTMLElement {
   const initial: Record<string, string> = {};
   for (const f of form_creator.fields) {
@@ -376,7 +384,7 @@ function buildForm(
       <span class="f3-close-btn" data-close>×</span>
       ${header}
       ${genderHtml(gender)}
-      ${fieldsHtml(form_creator.fields, initial)}
+      ${fieldsHtml(form_creator.fields, initial, lastNames)}
       ${avatarHtml(avatar)}
       ${buttons}
     </form>`;
@@ -440,14 +448,16 @@ function buildForm(
 
 export function createEditForm(
   form_creator: FormCreator,
-  closeCallback: () => void
+  closeCallback: () => void,
+  lastNames?: string[]
 ): HTMLElement {
-  return buildForm(form_creator, closeCallback, true);
+  return buildForm(form_creator, closeCallback, true, lastNames);
 }
 
 export function createNewForm(
   form_creator: FormCreator,
-  closeCallback: () => void
+  closeCallback: () => void,
+  lastNames?: string[]
 ): HTMLElement {
-  return buildForm(form_creator, closeCallback, false);
+  return buildForm(form_creator, closeCallback, false, lastNames);
 }
