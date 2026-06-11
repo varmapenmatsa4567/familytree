@@ -807,6 +807,10 @@ export default function TreePage({
     Array<{ code: string; telugu: string | null }>
   >([]);
   const [showMap, setShowMap] = useState(false);
+  const [eventsOpen, setEventsOpen] = useState(false);
+  const [events, setEvents] = useState<
+    Array<{ kind: "birthday" | "anniversary"; person: Datum; spouseName?: string; dateLabel: string; sortKey: number }>
+  >([]);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
 
@@ -1298,10 +1302,66 @@ export default function TreePage({
         {/* right */}
         <div className="tp-nav-right">
           <button
+            className={`tp-btn${eventsOpen ? " tp-btn-active" : ""}`}
+            onClick={() => {
+              if (!eventsOpen) {
+                const today = new Date();
+                const md = today.getMonth() * 100 + today.getDate();
+                const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+                const ordinal = (d: number) => d >= 11 && d <= 13 ? "th" : ["th","st","nd","rd","th","th","th","th","th","th"][d % 10] || "th";
+                const formatDate = (m: number, d: number) => `${d}${ordinal(d)} ${months[m]}`;
+                const upcoming: Array<{ kind: "birthday" | "anniversary"; person: Datum; spouseName?: string; dateLabel: string; sortKey: number }> = [];
+                const seenAnniversary = new Set<string>();
+                for (const p of peopleRef.current) {
+                  // birthday
+                  const b = p.data.birthday;
+                  if (typeof b === "string") {
+                    const bd = new Date(b);
+                    if (!isNaN(bd.getTime())) {
+                      const bmd = bd.getMonth() * 100 + bd.getDate();
+                      if (bmd >= md) {
+                        upcoming.push({ kind: "birthday", person: p, dateLabel: formatDate(bd.getMonth(), bd.getDate()), sortKey: bmd });
+                      }
+                    }
+                  }
+                  // marriage anniversaries (deduplicated per couple)
+                  const dates: Record<string, string> = {};
+                  try { Object.assign(dates, JSON.parse(p.data["marriage_dates"] || "{}")); } catch {}
+                  for (const [spouseId, d] of Object.entries(dates)) {
+                    const coupleKey = [p.id, spouseId].sort().join("|");
+                    if (seenAnniversary.has(coupleKey)) continue;
+                    seenAnniversary.add(coupleKey);
+                    const ad = new Date(d);
+                    if (!isNaN(ad.getTime())) {
+                      const amd = ad.getMonth() * 100 + ad.getDate();
+                      if (amd >= md) {
+                        const spouse = peopleRef.current.find(s => s.id === spouseId);
+                        const spouseName = spouse
+                          ? `${spouse.data["first name"] || ""} ${spouse.data["last name"] || ""}`.trim() || spouseId
+                          : spouseId;
+                        upcoming.push({ kind: "anniversary", person: p, spouseName, dateLabel: formatDate(ad.getMonth(), ad.getDate()), sortKey: amd });
+                      }
+                    }
+                  }
+                }
+                upcoming.sort((a, b) => a.sortKey - b.sortKey);
+                setEvents(upcoming);
+              }
+              setEventsOpen((v) => !v);
+              setCompareOpen(false);
+            }}
+          >
+            Events
+          </button>
+
+          <div className="tp-divider" />
+
+          <button
             className={`tp-btn${showMap ? " tp-btn-active" : ""}`}
             onClick={() => {
               setShowMap((v) => !v);
               setCompareOpen(false);
+              setEventsOpen(false);
             }}
           >
             Map
@@ -1311,7 +1371,7 @@ export default function TreePage({
 
           <button
             className={`tp-btn${compareOpen ? " tp-btn-active" : ""}`}
-            onClick={() => { setCompareOpen((v) => !v); setCompareResults([]); }}
+            onClick={() => { setCompareOpen((v) => !v); setCompareResults([]); setEventsOpen(false); }}
           >
             Compare
           </button>
@@ -1379,6 +1439,47 @@ export default function TreePage({
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── events panel ──────────────────────────────────────────────────── */}
+      {eventsOpen && (
+        <div className="tp-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="tp-panel-header">
+            <div className="tp-panel-dot" />
+            <span className="tp-panel-title">Upcoming Events</span>
+          </div>
+          <div className="tp-panel-body">
+            {events.length === 0 ? (
+              <div style={{ fontSize: 12, color: token.textDim, fontStyle: "italic", padding: "4px 0" }}>
+                No upcoming events found
+              </div>
+            ) : (
+              events.map((ev, i) => {
+                const avatar = ev.person.data.avatar || "";
+                const name = `${ev.person.data["first name"] || ""} ${ev.person.data["last name"] || ""}`.trim() || ev.person.id;
+                const icon = ev.kind === "birthday" ? "🎂" : "💍";
+                return (
+                  <div key={i} className="tp-result-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
+                      <span style={{ fontSize: 13 }}>{icon}</span>
+                      <span style={{ fontSize: 11, color: token.gold, fontWeight: 600 }}>{ev.dateLabel}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                      {avatar ? (
+                        <img src={avatar} style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", border: `1px solid ${token.border}` }} />
+                      ) : (
+                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: token.surfaceHigh, border: `1px dashed ${token.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: token.textMuted }}>{name.charAt(0).toUpperCase()}</div>
+                      )}
+                      <span style={{ fontSize: 12.5, color: token.text }}>
+                        {ev.kind === "birthday" ? `${name}'s Birthday` : `${name} & ${ev.spouseName}'s Anniversary`}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
