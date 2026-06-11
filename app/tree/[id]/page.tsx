@@ -977,7 +977,11 @@ export default function TreePage({
         const tree = await getTree(treeId);
         if (!tree) return;
         setTreeName(tree.name);
-        familyData = tree.people;
+        familyData = tree.people.map((d: any) => {
+          if (d._new_rel_data) delete d._new_rel_data;
+          if (d.to_add) delete d.to_add;
+          return d;
+        });
       } catch {
         familyData = DEFAULT_PEOPLE;
       }
