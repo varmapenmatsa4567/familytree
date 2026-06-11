@@ -8,6 +8,7 @@ import "family-chart/styles/family-chart.css";
 import { useAuth } from "@/lib/auth";
 import { getTree, updateTreePeople, updateTreeName } from "@/lib/firestore";
 import { createEditForm, createNewForm } from "@/lib/family-form";
+import type { SpouseDateInfo } from "@/lib/family-form";
 import type { Data, Datum } from "family-chart";
 import { RelationShipFinder, mergeSteps, stepsToCode, findRelation } from "@/utils/relationship";
 import "leaflet/dist/leaflet.css";
@@ -644,6 +645,44 @@ const styles = `
     background: ${token.surfaceHigh} !important;
   }
 
+  /* marriage dates */
+  .f3-marriage-section {
+    border-top: 1px solid ${token.border};
+    padding-top: 4px;
+    margin-top: 4px;
+  }
+  .f3-marriage-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .f3-marriage-name {
+    font-size: 12px;
+    color: ${token.textMuted};
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .f3-marriage-input {
+    padding: 6px 8px !important;
+    border-radius: 5px !important;
+    border: 1px solid ${token.borderHover} !important;
+    background: ${token.surfaceHigh} !important;
+    color: ${token.text} !important;
+    font-size: 12px !important;
+    outline: none !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+    color-scheme: dark !important;
+    max-width: 160px !important;
+    width: auto !important;
+  }
+  .f3-marriage-input:focus {
+    border-color: ${token.gold}55 !important;
+    box-shadow: 0 0 0 3px ${token.gold}11 !important;
+  }
+
   /* timeline slider */
   .tp-timeline {
     display: flex;
@@ -968,8 +1007,19 @@ export default function TreePage({
         .setFields(["first name", "last name", "birthday", "avatar", "location"])
         .setEditFirst(true)
         .setCreateFormEdit((fc, cb) => {
-          const names = [...new Set(peopleRef.current.map(p => p.data["last name"]).filter(Boolean))];
-          return createEditForm(fc, cb, names.length ? names : undefined);
+          const people = peopleRef.current;
+          const names = [...new Set(people.map(p => p.data["last name"]).filter(Boolean))];
+          const datum = people.find(p => p.id === fc.datum_id);
+          let spouseDates: SpouseDateInfo[] | undefined;
+          if (datum?.rels.spouses?.length) {
+            const marriageDates: Record<string, string> = {};
+            try { Object.assign(marriageDates, JSON.parse(datum.data["marriage_dates"] || "{}")); } catch {}
+            spouseDates = datum.rels.spouses.map(id => {
+              const s = people.find(p => p.id === id);
+              return { spouseId: id, spouseName: s ? `${s.data["first name"] || ""} ${s.data["last name"] || ""}`.trim() || id : id, date: marriageDates[id] || "" };
+            });
+          }
+          return createEditForm(fc, cb, names.length ? names : undefined, spouseDates);
         })
         .setCreateFormNew((fc, cb) => {
           const names = [...new Set(peopleRef.current.map(p => p.data["last name"]).filter(Boolean))];
@@ -981,6 +1031,25 @@ export default function TreePage({
           const exportIds = new Set(exportData.map(p => p.id));
           for (const p of fullDataRef.current) {
             if (!exportIds.has(p.id)) exportData.push(p);
+          }
+          // sync marriage dates between spouses
+          for (const p of exportData) {
+            const dates: Record<string, string> = {};
+            try { Object.assign(dates, JSON.parse(p.data["marriage_dates"] || "{}")); } catch {}
+            if (Object.keys(dates).length === 0) continue;
+            for (const [spouseId, date] of Object.entries(dates)) {
+              const spouse = exportData.find(d => d.id === spouseId);
+              if (!spouse) continue;
+              const spouseDates: Record<string, string> = {};
+              try { Object.assign(spouseDates, JSON.parse(spouse.data["marriage_dates"] || "{}")); } catch {}
+              if (spouseDates[p.id] !== date) {
+                spouseDates[p.id] = date;
+                spouse.data["marriage_dates"] = JSON.stringify(spouseDates);
+                // also update the chart's store so the spouse form sees it immediately
+                const chartDatum = (f3EditTree as any).store?.state?.data?.find((d: any) => d.id === spouseId);
+                if (chartDatum) chartDatum.data["marriage_dates"] = spouse.data["marriage_dates"];
+              }
+            }
           }
           fullDataRef.current = exportData;
           updateTreePeople(treeId, exportData).catch(console.warn);

@@ -347,7 +347,8 @@ function buildForm(
   form_creator: FormCreator,
   closeCallback: () => void,
   isEdit: boolean,
-  lastNames?: string[]
+  lastNames?: string[],
+  spouseDates?: SpouseDateInfo[]
 ): HTMLElement {
   const initial: Record<string, string> = {};
   for (const f of form_creator.fields) {
@@ -379,6 +380,18 @@ function buildForm(
       <h3 class="f3-form-title">Edit Person</h3>`
     : `<h3 class="f3-form-title">${form_creator.title || "Add Person"}</h3>`;
 
+  const marriageDatesHtml = isEdit && spouseDates?.length
+    ? `<div class="f3-form-field f3-marriage-section">
+        <label>Marriage Dates</label>
+        ${spouseDates.map(sd => `
+          <div class="f3-marriage-row">
+            <span class="f3-marriage-name">${sd.spouseName}</span>
+            <input type="date" name="marriage_date_${sd.spouseId}" value="${sd.date ? sd.date.replace(/"/g, "&quot;") : ""}" class="f3-marriage-input" />
+          </div>
+        `).join('')}
+      </div>`
+    : "";
+
   const html = `
     <form id="familyForm" class="f3-form">
       <span class="f3-close-btn" data-close>×</span>
@@ -386,6 +399,7 @@ function buildForm(
       ${genderHtml(gender)}
       ${fieldsHtml(form_creator.fields, initial, lastNames)}
       ${avatarHtml(avatar)}
+      ${marriageDatesHtml}
       ${buttons}
     </form>`;
 
@@ -428,6 +442,28 @@ function buildForm(
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     collectFormData(form, form_creator.fields, initial, avatarHidden);
+
+    // collect marriage dates into hidden input
+    const marriageDates: Record<string, string> = {};
+    if (spouseDates) {
+      for (const sd of spouseDates) {
+        const inp = form.querySelector(`[name="marriage_date_${sd.spouseId}"]`) as HTMLInputElement | null;
+        if (inp) {
+          if (inp.value) marriageDates[sd.spouseId] = inp.value;
+          inp.removeAttribute("name");
+        }
+      }
+    }
+    let hidden = form.querySelector('[name="marriage_dates"]') as HTMLInputElement | null;
+    if (!hidden) {
+      hidden = document.createElement("input");
+      hidden.type = "hidden";
+      hidden.name = "marriage_dates";
+      form.appendChild(hidden);
+    }
+    hidden.value = Object.keys(marriageDates).length > 0 ? JSON.stringify(marriageDates) : "";
+    initial["marriage_dates"] = hidden.value;
+
     for (const f of form_creator.fields) {
       f.initial_value = initial[f.id] ?? "";
     }
@@ -446,12 +482,19 @@ function buildForm(
   return el;
 }
 
+export interface SpouseDateInfo {
+  spouseId: string;
+  spouseName: string;
+  date: string;
+}
+
 export function createEditForm(
   form_creator: FormCreator,
   closeCallback: () => void,
-  lastNames?: string[]
+  lastNames?: string[],
+  spouseDates?: SpouseDateInfo[]
 ): HTMLElement {
-  return buildForm(form_creator, closeCallback, true, lastNames);
+  return buildForm(form_creator, closeCallback, true, lastNames, spouseDates);
 }
 
 export function createNewForm(
