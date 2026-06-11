@@ -1061,16 +1061,22 @@ export default function TreePage({
 
       fullDataRef.current = familyData;
 
-      // compute year range
-      const years = familyData
-        .map(p => {
-          const b = p.data.birthday;
-          if (b == null) return null;
-          if (typeof b === "number") return b > 0 ? b : null;
-          const y = new Date(b).getFullYear();
-          return isNaN(y) ? null : y;
-        })
-        .filter((y): y is number => y != null);
+      // compute year range (birthdays + marriage dates)
+      const years = familyData.flatMap(p => {
+        const result: number[] = [];
+        const b = p.data.birthday;
+        if (b != null) {
+          if (typeof b === "number" && b > 0) result.push(b);
+          else { const y = new Date(b).getFullYear(); if (!isNaN(y)) result.push(y); }
+        }
+        const dates: Record<string, string> = {};
+        try { Object.assign(dates, JSON.parse(p.data["marriage_dates"] || "{}")); } catch {}
+        for (const d of Object.values(dates)) {
+          const y = new Date(d).getFullYear();
+          if (!isNaN(y)) result.push(y);
+        }
+        return result;
+      });
       if (years.length > 0) {
         const min = Math.min(...years);
         const max = Math.max(...years);
@@ -1111,21 +1117,48 @@ export default function TreePage({
     if (!chart || !editTree) return;
     editTree.closeForm();
     const raw: Data = JSON.parse(JSON.stringify(full));
+
+    // Pass 1: filter by birthday
     const keep = raw.filter(p => {
       if (!p.data.birthday) return true;
       const b = typeof p.data.birthday === "number" ? p.data.birthday : new Date(p.data.birthday).getFullYear();
       return !isNaN(b) && b <= year;
     });
     const keepIds = new Set(keep.map(p => p.id));
+
+    // Pass 2: build marriage date lookup
+    const marriageMap = new Map<string, Record<string, string>>();
+    for (const p of keep) {
+      const dates: Record<string, string> = {};
+      try { Object.assign(dates, JSON.parse(p.data["marriage_dates"] || "{}")); } catch {}
+      marriageMap.set(p.id, dates);
+    }
+
+    // Pass 3: prune spousal relationships where marriage date hasn't been reached
+    for (const p of keep) {
+      if (!p.rels.spouses?.length) continue;
+      p.rels.spouses = p.rels.spouses.filter(spouseId => {
+        const dateStr = marriageMap.get(p.id)?.[spouseId];
+        if (!dateStr) return true;
+        const marriageYear = new Date(dateStr).getFullYear();
+        return !isNaN(marriageYear) && marriageYear <= year;
+      });
+    }
+
+    // Pass 4: filter all relationships by keepIds
     for (const p of keep) {
       p.rels.parents = p.rels.parents.filter(id => keepIds.has(id));
       p.rels.spouses = p.rels.spouses.filter(id => keepIds.has(id));
       p.rels.children = p.rels.children.filter(id => keepIds.has(id));
     }
-    (keep as any).main_id = keep[0]?.id;
-    chart.updateData(keep);
+
+    // Pass 5: remove completely disconnected people
+    const connected = keep.filter(p => p.rels.parents.length || p.rels.spouses.length || p.rels.children.length);
+
+    (connected as any).main_id = connected[0]?.id;
+    chart.updateData(connected);
     chart.updateTree({ transition_time: 300 });
-    peopleRef.current = keep;
+    peopleRef.current = connected;
   };
 
   const handleCompare = () => {
