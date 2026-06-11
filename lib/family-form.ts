@@ -1,5 +1,6 @@
 import Cropper from "cropperjs";
 import "cropperjs/dist/cropper.css";
+import type { Datum } from "family-chart";
 
 interface FormField {
   id: string;
@@ -38,6 +39,12 @@ interface FormCreator {
   editable?: boolean;
   no_edit?: boolean;
   gender_field?: GenderField;
+  linkExistingRelative?: {
+    title: string;
+    select_placeholder: string;
+    options: { value: string; label: string }[];
+    onSelect: (e: Event) => void;
+  };
 }
 
 function openCropModal(
@@ -198,9 +205,6 @@ function openLocationModal(
   displayEl: HTMLElement
 ): void {
   const current = hiddenInput.value;
-  const parts = current ? current.split(",") : ["", ""];
-  let lat = parts[0] || "";
-  let lng = parts[1] || "";
 
   const overlay = document.createElement("div");
   overlay.style.cssText = `
@@ -219,36 +223,21 @@ function openLocationModal(
   title.textContent = "Set Location";
   title.style.cssText = "font-size:13px;font-weight:600;color:#f0ede8;text-align:center;letter-spacing:0.02em;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.07);";
 
-  const latGroup = document.createElement("div");
-  latGroup.style.cssText = "display:flex;flex-direction:column;gap:4px;";
-  const latLabel = document.createElement("label");
-  latLabel.textContent = "Latitude";
-  latLabel.style.cssText = "font-size:11px;font-weight:500;color:#7a7672;text-transform:uppercase;letter-spacing:0.04em;";
-  const latInput = document.createElement("input");
-  latInput.type = "number";
-  latInput.step = "any";
-  latInput.value = lat;
-  latInput.placeholder = "e.g. 17.3850";
-  latInput.style.cssText = `
+  const inputGroup = document.createElement("div");
+  inputGroup.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+  const inputLabel = document.createElement("label");
+  inputLabel.textContent = "Latitude, Longitude";
+  inputLabel.style.cssText = "font-size:11px;font-weight:500;color:#7a7672;text-transform:uppercase;letter-spacing:0.04em;";
+  const coordInput = document.createElement("input");
+  coordInput.type = "text";
+  coordInput.value = current;
+  coordInput.placeholder = "e.g. 17.3850, 78.4867";
+  coordInput.style.cssText = `
     padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);
     background:#1c1c1c;color:#f0ede8;font-size:13px;outline:none;font-family:'Inter',system-ui,sans-serif;
   `;
-  latGroup.appendChild(latLabel);
-  latGroup.appendChild(latInput);
-
-  const lngGroup = document.createElement("div");
-  lngGroup.style.cssText = "display:flex;flex-direction:column;gap:4px;";
-  const lngLabel = document.createElement("label");
-  lngLabel.textContent = "Longitude";
-  lngLabel.style.cssText = "font-size:11px;font-weight:500;color:#7a7672;text-transform:uppercase;letter-spacing:0.04em;";
-  const lngInput = document.createElement("input");
-  lngInput.type = "number";
-  lngInput.step = "any";
-  lngInput.value = lng;
-  lngInput.placeholder = "e.g. 78.4867";
-  lngInput.style.cssText = latInput.style.cssText;
-  lngGroup.appendChild(lngLabel);
-  lngGroup.appendChild(lngInput);
+  inputGroup.appendChild(inputLabel);
+  inputGroup.appendChild(coordInput);
 
   const btnBar = document.createElement("div");
   btnBar.style.cssText = "display:flex;gap:8px;justify-content:flex-end;margin-top:4px;";
@@ -276,9 +265,7 @@ function openLocationModal(
   saveBtn.onmouseenter = () => saveBtn.style.opacity = "0.88";
   saveBtn.onmouseleave = () => saveBtn.style.opacity = "1";
   saveBtn.onclick = () => {
-    const newLat = latInput.value.trim();
-    const newLng = lngInput.value.trim();
-    const val = newLat && newLng ? `${newLat},${newLng}` : "";
+    const val = coordInput.value.trim();
     hiddenInput.value = val;
     displayEl.textContent = val || "Not set";
     overlay.remove();
@@ -287,13 +274,12 @@ function openLocationModal(
   btnBar.appendChild(cancelBtn);
   btnBar.appendChild(saveBtn);
   box.appendChild(title);
-  box.appendChild(latGroup);
-  box.appendChild(lngGroup);
+  box.appendChild(inputGroup);
   box.appendChild(btnBar);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
 
-  setTimeout(() => latInput.focus(), 50);
+  setTimeout(() => coordInput.focus(), 50);
 }
 
 function setupAvatarInput(form: HTMLElement) {
@@ -343,12 +329,79 @@ function collectFormData(
   return initial;
 }
 
+function linkExistingRelativeHtml(
+  link: NonNullable<FormCreator["linkExistingRelative"]>,
+  people: Datum[]
+): string {
+  const title = link.title ?? "Profile already exists?";
+  const placeholder = link.select_placeholder ?? "Select profile";
+  const validIds = new Set(
+    people
+      .filter(
+        (p) =>
+          !p._new_rel_data &&
+          ((p.data["first name"] || "").trim() || (p.data["last name"] || "").trim())
+      )
+      .map((p) => p.id)
+  );
+  const filtered = link.options.filter((o) => validIds.has(o.value));
+  const personMap = new Map(people.map((p) => [p.id, p]));
+  function avatarFor(person: Datum | undefined): string {
+    const url = person?.data?.avatar;
+    if (!url) return "";
+    return url;
+  }
+  const nameFor = (person: Datum | undefined): string => {
+    if (!person) return "";
+    return `${person.data["first name"] || ""} ${person.data["last name"] || ""}`.trim();
+  };
+  return `
+    <div>
+      <hr>
+      <div class="f3-link-existing-relative">
+        <label>${title}</label>
+        <div class="f3-link-custom-select" tabindex="0">
+          <div class="f3-link-trigger" data-link-trigger>
+            <span class="f3-link-placeholder">${placeholder}</span>
+          </div>
+          <div class="f3-link-options" data-link-options>
+            ${filtered
+              .map((o) => {
+                const person = personMap.get(o.value);
+                const name = nameFor(person);
+                const avatar = avatarFor(person);
+                return `<div class="f3-link-option" data-person-id="${o.value.replace(/"/g, "&quot;")}">
+                  ${
+                    avatar
+                      ? `<img src="${avatar}" class="f3-link-avatar" onerror="this.style.display='none'" />`
+                      : `<div class="f3-link-avatar f3-link-avatar-empty">${(name.charAt(0) || "?").toUpperCase()}</div>`
+                  }
+                  <span>${name}</span>
+                </div>`;
+              })
+              .join("")}
+          </div>
+        </div>
+        <select style="display:none" data-link-native>
+          <option value="">${placeholder}</option>
+          ${filtered
+            .map(
+              (o) =>
+                `<option value="${o.value.replace(/"/g, "&quot;")}">${o.label}</option>`
+            )
+            .join("")}
+        </select>
+      </div>
+    </div>`;
+}
+
 function buildForm(
   form_creator: FormCreator,
   closeCallback: () => void,
   isEdit: boolean,
   lastNames?: string[],
-  spouseDates?: SpouseDateInfo[]
+  spouseDates?: SpouseDateInfo[],
+  people?: Datum[]
 ): HTMLElement {
   const initial: Record<string, string> = {};
   for (const f of form_creator.fields) {
@@ -401,16 +454,23 @@ function buildForm(
       ${avatarHtml(avatar)}
       ${marriageDatesHtml}
       ${buttons}
+      ${form_creator.linkExistingRelative ? linkExistingRelativeHtml(form_creator.linkExistingRelative, people || []) : ""}
     </form>`;
 
   const el = document.createElement("div");
   el.innerHTML = html;
   const form = el.firstElementChild as HTMLElement;
 
-  form.querySelector("[data-close]")?.addEventListener("click", closeCallback);
+  form.querySelector("[data-close]")?.addEventListener("click", () => {
+    form_creator.onCancel?.();
+    closeCallback();
+  });
   form
     .querySelector("[data-cancel]")
-    ?.addEventListener("click", closeCallback);
+    ?.addEventListener("click", () => {
+      form_creator.onCancel?.();
+      closeCallback();
+    });
 
   if (isEdit) {
     form
@@ -433,6 +493,42 @@ function buildForm(
   const locDisplay = form.querySelector(".f3-loc-display") as HTMLElement | null;
   if (locBtn && locHidden && locDisplay) {
     locBtn.onclick = () => openLocationModal(locHidden, locDisplay);
+  }
+
+  const linkNative = form.querySelector(
+    ".f3-link-existing-relative [data-link-native]"
+  ) as HTMLSelectElement | null;
+  const linkTrigger = form.querySelector(
+    ".f3-link-existing-relative [data-link-trigger]"
+  ) as HTMLElement | null;
+  const linkOptions = form.querySelector(
+    ".f3-link-existing-relative [data-link-options]"
+  ) as HTMLElement | null;
+  if (linkTrigger && linkOptions && form_creator.linkExistingRelative) {
+    const onSelect = form_creator.linkExistingRelative.onSelect;
+    linkTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = linkOptions.style.display === "block";
+      linkOptions.style.display = open ? "none" : "block";
+    });
+    linkOptions.querySelectorAll("[data-person-id]").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const personId = (el as HTMLElement).getAttribute("data-person-id") || "";
+        const name = el.textContent || "";
+        const placeholder = linkTrigger.querySelector(".f3-link-placeholder") as HTMLElement | null;
+        if (placeholder) placeholder.textContent = name;
+        linkOptions.style.display = "none";
+        if (linkNative) {
+          linkNative.value = personId;
+          linkNative.dispatchEvent(new Event("change"));
+        }
+        if (onSelect) onSelect({ target: { value: personId } } as any);
+      });
+    });
+    document.addEventListener("click", () => {
+      linkOptions.style.display = "none";
+    });
   }
 
   const avatarHidden = form.querySelector(
@@ -492,15 +588,17 @@ export function createEditForm(
   form_creator: FormCreator,
   closeCallback: () => void,
   lastNames?: string[],
-  spouseDates?: SpouseDateInfo[]
+  spouseDates?: SpouseDateInfo[],
+  people?: Datum[]
 ): HTMLElement {
-  return buildForm(form_creator, closeCallback, true, lastNames, spouseDates);
+  return buildForm(form_creator, closeCallback, true, lastNames, spouseDates, people);
 }
 
 export function createNewForm(
   form_creator: FormCreator,
   closeCallback: () => void,
-  lastNames?: string[]
+  lastNames?: string[],
+  people?: Datum[]
 ): HTMLElement {
-  return buildForm(form_creator, closeCallback, false, lastNames);
+  return buildForm(form_creator, closeCallback, false, lastNames, undefined, people);
 }

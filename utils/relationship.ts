@@ -426,7 +426,7 @@ export const TRANSITIONS = {
     [`${Relation.PATERNAL_GRANDFATHER}|${Relation.WIFE}`]: Relation.PATERNAL_GRANDMOTHER,
     [`${Relation.PATERNAL_GRANDFATHER}|${Relation.SISTER}`]: Relation.PATERNAL_GRANDMOTHER,
     [`${Relation.PATERNAL_GRANDFATHER}|${Relation.MOTHER}`]: Relation.GREAT_GRANDMOTHER,
-    [`${Relation.PATERNAL_GRANDFATHER}|${Relation.FATHER}`]: Relation.GREAT_GRANDMOTHER,
+    [`${Relation.PATERNAL_GRANDFATHER}|${Relation.FATHER}`]: Relation.GREAT_GRANDFATHER,
 
     // Paternal Grand Mother
     [`${Relation.PATERNAL_GRANDMOTHER}|${Relation.SON}`]: Relation.PATERNAL_UNCLE,
@@ -435,25 +435,25 @@ export const TRANSITIONS = {
     [`${Relation.PATERNAL_GRANDMOTHER}|${Relation.HUSBAND}`]: Relation.PATERNAL_GRANDFATHER,
     [`${Relation.PATERNAL_GRANDMOTHER}|${Relation.SISTER}`]: Relation.PATERNAL_GRANDMOTHER,
     [`${Relation.PATERNAL_GRANDMOTHER}|${Relation.MOTHER}`]: Relation.GREAT_GRANDMOTHER,
-    [`${Relation.PATERNAL_GRANDMOTHER}|${Relation.FATHER}`]: Relation.GREAT_GRANDMOTHER,
+    [`${Relation.PATERNAL_GRANDMOTHER}|${Relation.FATHER}`]: Relation.GREAT_GRANDFATHER,
 
     // Maternal Grand Father
     [`${Relation.MATERNAL_GRANDFATHER}|${Relation.SON}`]: Relation.MATERNAL_UNCLE,
     [`${Relation.MATERNAL_GRANDFATHER}|${Relation.DAUGHTER}`]: Relation.MATERNAL_AUNT,
     [`${Relation.MATERNAL_GRANDFATHER}|${Relation.BROTHER}`]: Relation.MATERNAL_GRANDFATHER,
     [`${Relation.MATERNAL_GRANDFATHER}|${Relation.WIFE}`]: Relation.MATERNAL_GRANDMOTHER,
-    [`${Relation.MATERNAL_GRANDFATHER}|${Relation.SISTER}`]: Relation.MATERNAL_GRANDMOTHER,
+    [`${Relation.MATERNAL_GRANDFATHER}|${Relation.SISTER}`]: Relation.PATERNAL_GRANDMOTHER,
     [`${Relation.MATERNAL_GRANDFATHER}|${Relation.MOTHER}`]: Relation.GREAT_GRANDMOTHER,
-    [`${Relation.MATERNAL_GRANDFATHER}|${Relation.FATHER}`]: Relation.GREAT_GRANDMOTHER,
+    [`${Relation.MATERNAL_GRANDFATHER}|${Relation.FATHER}`]: Relation.GREAT_GRANDFATHER,
 
     // Maternal Grand Mother
-    [`${Relation.MATERNAL_GRANDMOTHER}|${Relation.SON}`]: Relation.MATERNAL_UNCLE,
+    [`${Relation.MATERNAL_GRANDMOTHER}|${Relation.SON}`]: Relation.PATERNAL_UNCLE,
     [`${Relation.MATERNAL_GRANDMOTHER}|${Relation.DAUGHTER}`]: Relation.MATERNAL_AUNT,
     [`${Relation.MATERNAL_GRANDMOTHER}|${Relation.BROTHER}`]: Relation.MATERNAL_GRANDFATHER,
     [`${Relation.MATERNAL_GRANDMOTHER}|${Relation.HUSBAND}`]: Relation.MATERNAL_GRANDFATHER,
     [`${Relation.MATERNAL_GRANDMOTHER}|${Relation.SISTER}`]: Relation.MATERNAL_GRANDMOTHER,
     [`${Relation.MATERNAL_GRANDMOTHER}|${Relation.MOTHER}`]: Relation.GREAT_GRANDMOTHER,
-    [`${Relation.MATERNAL_GRANDMOTHER}|${Relation.FATHER}`]: Relation.GREAT_GRANDMOTHER,
+    [`${Relation.MATERNAL_GRANDMOTHER}|${Relation.FATHER}`]: Relation.GREAT_GRANDFATHER,
 };
 
 export const findRelation = (path: string) => {

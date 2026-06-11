@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { createTree, getUserTrees, updateTreeName } from "@/lib/firestore";
+import { createTree, getTree, getUserTrees, updateTreeName, updateTreePeople } from "@/lib/firestore";
 
 const token = {
   bg:          "#0c0c0c",
@@ -258,6 +258,7 @@ const styles = `
   }
   .db-card-action:hover { background: rgba(255,255,255,0.06); }
   .db-card-rename:hover { color: ${token.textMuted}; }
+  .db-card-duplicate:hover { color: ${token.gold}; }
   .db-card-delete:hover { color: #f87171; }
 
   .db-card-rename-input {
@@ -369,6 +370,24 @@ export default function DashboardPage() {
       setTrees((prev) => prev.filter((t) => t.id !== treeId));
     } catch (err) {
       console.error("[dashboard] Failed to delete tree:", err);
+    }
+  };
+
+  const handleDuplicate = async (e: React.MouseEvent, tree: TreeItem) => {
+    e.stopPropagation();
+    try {
+      const original = await getTree(tree.id);
+      if (!original) return;
+      const newId = await createTree(user!.uid, `${tree.name} (Copy)`);
+      if (original.people?.length) {
+        await updateTreePeople(newId, original.people);
+      }
+      setTrees((prev) => [
+        ...prev,
+        { id: newId, name: `${tree.name} (Copy)`, createdAt: new Date() },
+      ]);
+    } catch (err) {
+      console.error("[dashboard] Failed to duplicate tree:", err);
     }
   };
 
@@ -513,6 +532,16 @@ export default function DashboardPage() {
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); startRename(e as unknown as React.MouseEvent, tree); } }}
                       >
                         ✎
+                      </span>
+                      <span
+                        className="db-card-action db-card-duplicate"
+                        onClick={(e) => handleDuplicate(e, tree)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleDuplicate(e as unknown as React.MouseEvent, tree); } }}
+                        title="Duplicate"
+                      >
+                        ⧉
                       </span>
                       <span
                         className="db-card-action db-card-delete"

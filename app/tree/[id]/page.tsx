@@ -683,6 +683,99 @@ const styles = `
     box-shadow: 0 0 0 3px ${token.gold}11 !important;
   }
 
+  /* link existing relative custom select */
+  .f3-link-existing-relative {
+    margin-top: 0;
+  }
+  .f3-link-existing-relative > label {
+    font-family: 'Inter', system-ui, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    color: ${token.textMuted} !important;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .f3-link-custom-select {
+    position: relative;
+    width: 100%;
+    outline: none;
+  }
+  .f3-link-trigger {
+    padding: 8px 10px;
+    border: 1px solid ${token.borderHover};
+    border-radius: 6px;
+    background: ${token.surfaceHigh};
+    color: ${token.text};
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: border-color .15s;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  .f3-link-trigger:hover {
+    border-color: ${token.gold}55;
+  }
+  .f3-link-trigger::after {
+    content: '▾';
+    font-size: 10px;
+    color: ${token.textMuted};
+    margin-left: 8px;
+  }
+  .f3-link-placeholder {
+    color: ${token.textDim};
+  }
+  .f3-link-options {
+    display: none;
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 30;
+    background: #1a1a1a;
+    border: 1px solid ${token.borderHover};
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+  .f3-link-options::-webkit-scrollbar { width: 4px; }
+  .f3-link-options::-webkit-scrollbar-track { background: transparent; }
+  .f3-link-options::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  .f3-link-option {
+    padding: 7px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12.5px;
+    color: ${token.text};
+    transition: background .1s;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  .f3-link-option:hover { background: #242424; }
+  .f3-link-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid ${token.border};
+  }
+  .f3-link-avatar-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: ${token.surfaceHigh};
+    border: 1px dashed ${token.border};
+    font-size: 11px;
+    color: ${token.textMuted};
+    font-weight: 600;
+  }
+
   /* timeline slider */
   .tp-timeline {
     display: flex;
@@ -1015,6 +1108,11 @@ export default function TreePage({
         .fixed()
         .setFields(["first name", "last name", "birthday", "avatar", "location"])
         .setEditFirst(true)
+        .setLinkExistingRelConfig({
+          linkRelLabel: (d: any) => `${d.data["first name"] || ""} ${d.data["last name"] || ""}`.trim() || d.id,
+          title: "Link to existing person",
+          select_placeholder: "Select person...",
+        })
         .setCreateFormEdit((fc, cb) => {
           const people = peopleRef.current;
           const names = [...new Set(people.map(p => p.data["last name"]).filter(Boolean))];
@@ -1028,11 +1126,12 @@ export default function TreePage({
               return { spouseId: id, spouseName: s ? `${s.data["first name"] || ""} ${s.data["last name"] || ""}`.trim() || id : id, date: marriageDates[id] || "" };
             });
           }
-          return createEditForm(fc, cb, names.length ? names : undefined, spouseDates);
+          return createEditForm(fc, cb, names.length ? names : undefined, spouseDates, people);
         })
         .setCreateFormNew((fc, cb) => {
-          const names = [...new Set(peopleRef.current.map(p => p.data["last name"]).filter(Boolean))];
-          return createNewForm(fc, cb, names.length ? names : undefined);
+          const people = peopleRef.current;
+          const names = [...new Set(people.map(p => p.data["last name"]).filter(Boolean))];
+          return createNewForm(fc, cb, names.length ? names : undefined, people);
         })
         .setOnChange(() => {
           if (!f3EditTree) return;
@@ -1448,12 +1547,10 @@ export default function TreePage({
             {compareResults.length > 0 && (
               <div className="tp-results">
                 <div className="tp-results-label">Result</div>
-                {compareResults.map((r, i) => (
-                  <div key={i} className="tp-result-row">
-                    <span className="tp-result-code">{r.code}</span>
-                    {r.telugu && <span className="tp-result-telugu">{r.telugu}</span>}
-                  </div>
-                ))}
+                <div className="tp-result-row">
+                  <span className="tp-result-code">{compareResults[0].code}</span>
+                  {compareResults[0].telugu && <span className="tp-result-telugu">{compareResults[0].telugu}</span>}
+                </div>
               </div>
             )}
           </div>
