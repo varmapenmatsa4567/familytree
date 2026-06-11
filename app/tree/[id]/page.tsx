@@ -807,6 +807,7 @@ export default function TreePage({
     Array<{ code: string; telugu: string | null }>
   >([]);
   const [showMap, setShowMap] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [eventsOpen, setEventsOpen] = useState(false);
   const [events, setEvents] = useState<
     Array<{ kind: "birthday" | "anniversary"; person: Datum; spouseName?: string; dateLabel: string; sortKey: number }>
@@ -1349,9 +1350,23 @@ export default function TreePage({
               }
               setEventsOpen((v) => !v);
               setCompareOpen(false);
+              setInfoOpen(false);
             }}
           >
             Events
+          </button>
+
+          <div className="tp-divider" />
+
+          <button
+            className={`tp-btn${infoOpen ? " tp-btn-active" : ""}`}
+            onClick={() => {
+              setInfoOpen((v) => !v);
+              setCompareOpen(false);
+              setEventsOpen(false);
+            }}
+          >
+            Info
           </button>
 
           <div className="tp-divider" />
@@ -1362,6 +1377,7 @@ export default function TreePage({
               setShowMap((v) => !v);
               setCompareOpen(false);
               setEventsOpen(false);
+              setInfoOpen(false);
             }}
           >
             Map
@@ -1371,7 +1387,7 @@ export default function TreePage({
 
           <button
             className={`tp-btn${compareOpen ? " tp-btn-active" : ""}`}
-            onClick={() => { setCompareOpen((v) => !v); setCompareResults([]); setEventsOpen(false); }}
+            onClick={() => { setCompareOpen((v) => !v); setCompareResults([]); setEventsOpen(false); setInfoOpen(false); }}
           >
             Compare
           </button>
@@ -1484,6 +1500,72 @@ export default function TreePage({
           </div>
         </div>
       )}
+
+      {/* ── info panel ────────────────────────────────────────────────────── */}
+      {infoOpen && (() => {
+        const people = peopleRef.current;
+        const now = new Date();
+        const getAge = (b: any): number | null => {
+          if (b == null) return null;
+          if (typeof b === "number") return now.getFullYear() - b;
+          const d = new Date(b);
+          if (isNaN(d.getTime())) return null;
+          const age = now.getFullYear() - d.getFullYear();
+          const m = now.getMonth() - d.getMonth();
+          return m < 0 || (m === 0 && now.getDate() < d.getDate()) ? age - 1 : age;
+        };
+        const getAgeInMonths = (b: any): number | null => {
+          if (b == null) return null;
+          const d = new Date(b);
+          if (isNaN(d.getTime())) return null;
+          return (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth();
+        };
+        const ages = people.map(p => ({ p, age: getAge(p.data.birthday), months: getAgeInMonths(p.data.birthday) })).filter(a => a.age !== null);
+        const total = people.length;
+        const avgAge = ages.length > 0 ? Math.round(ages.reduce((s, a) => s + a.age!, 0) / ages.length) : null;
+        const oldest = ages.length > 0 ? ages.reduce((a, b) => a.age! > b.age! ? a : b) : null;
+        const youngest = ages.length > 0 ? ages.reduce((a, b) => a.months! < b.months! ? a : b) : null;
+        const youngLabel = youngest && youngest.months! < 24
+          ? `${youngest.months} month${youngest.months! !== 1 ? "s" : ""}`
+          : youngest ? `${youngest.age}` : null;
+        const oldestName = oldest
+          ? `${oldest.p.data["first name"] || ""} ${oldest.p.data["last name"] || ""}`.trim() || oldest.p.id
+          : null;
+        const youngestName = youngest
+          ? `${youngest.p.data["first name"] || ""} ${youngest.p.data["last name"] || ""}`.trim() || youngest.p.id
+          : null;
+        const maleCount = people.filter(p => p.data.gender === "M").length;
+        const femaleCount = people.filter(p => p.data.gender === "F").length;
+        const couples = people.filter(p => p.rels.spouses?.length).length;
+        const rows: Array<{ label: string; value: string }> = [
+          { label: "Total Members", value: String(total) },
+          { label: "Males", value: String(maleCount) },
+          { label: "Females", value: String(femaleCount) },
+          { label: "Couples", value: String(Math.floor(couples / 2)) },
+          { label: "Average Age", value: avgAge !== null ? `${avgAge} yrs` : "—" },
+        ];
+        if (oldest && oldestName) rows.push({ label: "Oldest Member", value: `${oldestName} (${oldest.age} yrs)` });
+        if (youngest && youngestName) rows.push({ label: "Youngest Member", value: `${youngestName} (${youngLabel})` });
+        return (
+          <div className="tp-panel" onClick={(e) => e.stopPropagation()} style={{ width: 280 }}>
+            <div className="tp-panel-header">
+              <div className="tp-panel-dot" />
+              <span className="tp-panel-title">Family Info</span>
+            </div>
+            <div className="tp-panel-body" style={{ gap: 0 }}>
+              {rows.map((r, i) => (
+                <div key={i} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "10px 0", borderBottom: i < rows.length - 1 ? `1px solid ${token.border}` : "none",
+                }}>
+                  <span style={{ fontSize: 12, color: token.textMuted }}>{r.label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: token.text, textAlign: "right", maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── chart / map ──────────────────────────────────────────────────── */}
       <div
