@@ -776,6 +776,20 @@ const styles = `
     font-weight: 600;
   }
 
+  /* spouse link text (marriage dates) */
+  .f3 g.link-text text {
+    fill: ${token.gold};
+    font-size: 10px;
+    font-weight: 600;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: rgba(0,0,0,0.7);
+    stroke-width: 2.5px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    dominant-baseline: hanging;
+  }
+
   /* timeline slider */
   .tp-timeline {
     display: flex;
@@ -1091,7 +1105,18 @@ export default function TreePage({
         .setCardYSpacing(150)
         .setSingleParentEmptyCard(true, { label: "ADD" })
         .setShowSiblingsOfMain(true)
-        .setOrientationVertical();
+        .setOrientationVertical()
+        .setLinkSpouseText((sp1: any, sp2: any) => {
+          const d = sp1.data?.data || sp1.data;
+          const dates: Record<string, string> = {};
+          try { Object.assign(dates, JSON.parse(d["marriage_dates"] || "{}")); } catch {}
+          const date = dates[sp2.data.id];
+          if (date) {
+            const d2 = new Date(date);
+            if (!isNaN(d2.getTime())) return d2.toLocaleDateString("en-US", { year: "numeric", month: "short" });
+          }
+          return "";
+        })
 
       const f3Card = f3Chart
         .setCardHtml()
