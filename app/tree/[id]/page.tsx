@@ -1000,17 +1000,17 @@ export default function TreePage({
           iconSize = [42, 56];
           iconAnchor = [21, 56];
         } else {
-          const avatarsHtml = group.map((p) => {
-            const name = `${p.data["first name"] || ""} ${p.data["last name"] || ""}`.trim() || p.id;
-            const avatar = p.data.avatar || "";
-            return avatar
-              ? `<img src="${avatar}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid ${token.gold}" title="${name}" />`
-              : `<div style="width:28px;height:28px;border-radius:50%;background:${token.surfaceHigh};border:2px solid ${token.textDim};display:flex;align-items:center;justify-content:center;font-size:12px;color:${token.textMuted}" title="${name}">${name.charAt(0).toUpperCase()}</div>`;
-          }).join("");
           const count = group.length;
-          iconHtml = `<div style="display:flex;flex-direction:row;flex-wrap:wrap;gap:0;background:rgba(0,0,0,.65);padding:4px 6px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.6)">${avatarsHtml}</div><div style="text-align:center;font-size:9px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9);margin-top:2px">${count} members</div>`;
-          iconSize = [group.length * 30 + 12, 48];
-          iconAnchor = [(group.length * 30 + 12) / 2, 48];
+          const first = group[0];
+          const firstName = `${first.data["first name"] || ""} ${first.data["last name"] || ""}`.trim() || first.id;
+          const firstAvatar = first.data.avatar || "";
+          const firstImg = firstAvatar
+            ? `<img src="${firstAvatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${token.gold};box-shadow:0 2px 8px rgba(0,0,0,.5)" />`
+            : `<div style="width:36px;height:36px;border-radius:50%;background:${token.surfaceHigh};border:2px solid ${token.textDim};display:flex;align-items:center;justify-content:center;font-size:14px;color:${token.textMuted}">${firstName.charAt(0).toUpperCase()}</div>`;
+          const extra = count - 1;
+          iconHtml = `<div style="position:relative;display:inline-block">${firstImg}<span style="position:absolute;bottom:-4px;right:-8px;font-size:11px;font-weight:700;color:#0c0c0c;background:${token.gold};padding:1px 5px;border-radius:8px;border:2px solid ${token.bg};line-height:1.4">+${extra}</span></div>`;
+          iconSize = [42, 48];
+          iconAnchor = [21, 48];
         }
 
         const icon = L.divIcon({
@@ -1023,20 +1023,18 @@ export default function TreePage({
         (marker.options as any).personCount = group.length;
         mcg.addLayer(marker);
 
-        if (group.length > 1) {
-          const namesHtml = group.map((p) => {
-            const name = `${p.data["first name"] || ""} ${p.data["last name"] || ""}`.trim() || p.id;
-            const avatar = p.data.avatar || "";
-            const img = avatar
-              ? `<img src="${avatar}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />`
-              : `<div style="display:inline-flex;width:24px;height:24px;border-radius:50%;background:${token.surfaceHigh};align-items:center;justify-content:center;font-size:10px;color:${token.textMuted};vertical-align:middle;margin-right:6px">${name.charAt(0).toUpperCase()}</div>`;
-            return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">${img}<span style="font-size:13px">${name}</span></div>`;
-          }).join("");
-          marker.bindPopup(
-            `<div style="font-family:Inter,sans-serif;background:#1a1a1a;color:#e0e0e0;padding:8px 12px;border-radius:8px;min-width:160px">${namesHtml}</div>`,
-            { closeButton: false },
-          );
-        }
+        const namesHtml = group.map((p) => {
+          const name = `${p.data["first name"] || ""} ${p.data["last name"] || ""}`.trim() || p.id;
+          const avatar = p.data.avatar || "";
+          const img = avatar
+            ? `<img src="${avatar}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px" />`
+            : `<div style="display:inline-flex;width:24px;height:24px;border-radius:50%;background:${token.surfaceHigh};align-items:center;justify-content:center;font-size:10px;color:${token.textMuted};vertical-align:middle;margin-right:6px">${name.charAt(0).toUpperCase()}</div>`;
+          return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">${img}<span style="font-size:13px">${name}</span></div>`;
+        }).join("");
+        marker.bindPopup(
+          `<div style="font-family:Inter,sans-serif;background:#1a1a1a;color:#e0e0e0;padding:8px 12px;border-radius:8px;min-width:160px">${namesHtml}</div>`,
+          { closeButton: false },
+        );
 
         bounds.push([lat, lng]);
       });
@@ -1088,7 +1086,7 @@ export default function TreePage({
 
       f3Chart = f3
         .createChart("#FamilyChart", familyData)
-        .setTransitionTime(1000)
+        .setTransitionTime(700)
         .setCardXSpacing(250)
         .setCardYSpacing(150)
         .setSingleParentEmptyCard(true, { label: "ADD" })
